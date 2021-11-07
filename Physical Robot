@@ -1,0 +1,254 @@
+#include <Servo.h>        // Include Servo Library
+#include <NewPing.h>      // Include Newping Library
+
+// L298N Control Pins
+const int LeftMotorForward = 4;
+const int LeftMotorBackward = 5;
+const int RightMotorForward = 6;
+const int RightMotorBackward = 7;
+
+#define TRIGGER_PIN  A1  // Arduino pin tied to trigger pin on the ultrasonic sensor.
+#define ECHO_PIN     A2  // Arduino pin tied to echo pin on the ultrasonic sensor.
+#define MAX_DISTANCE 250 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 250cm.
+
+Servo servo_motor;  // Servo's name
+NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
+
+boolean goesForward = false;
+int distance = 100;
+
+int redPin = 10;
+int greenPin = 9;
+int bluePin = 8;
+
+void setup()
+{
+  // Set L298N Control Pins as Output
+  pinMode(RightMotorForward, OUTPUT);
+  pinMode(LeftMotorForward, OUTPUT);
+  pinMode(LeftMotorBackward, OUTPUT);
+  pinMode(RightMotorBackward, OUTPUT);
+  
+  pinMode(redPin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+  pinMode(bluePin, OUTPUT);
+
+  Serial.begin(9600);
+  servo_motor.attach(11);   // Attachs the servo on pin 9 to servo object.
+  servo_motor.write(90);   // Set at 115 degrees.
+  delay(2000);              // Wait for 2s.
+  distance = readPing();    // Get Ping Distance.
+  delay(100);               // Wait for 100ms.
+  distance = readPing();
+  delay(100);
+  distance = readPing();
+  delay(100);
+  distance = readPing();
+  delay(100);
+}
+
+void setColor(int red, int green, int blue) {
+
+ // set the three pins
+  analogWrite(redPin, red);
+  analogWrite(greenPin, green);
+  analogWrite(bluePin, blue);
+}
+int one = 1;
+int wall = 10;
+int wallFound = 0;
+
+void loop()
+{
+  setColor(255,255,0);
+  distance = readPing();
+  if (wallFound == 0 & distance > wall)
+  {
+    moveForward();
+    distance = readPing();
+  }
+  if (distance < wall & wallFound ==0)
+  {
+    moveStop();
+    delay(300);
+    wallFound = 1;
+    
+  }
+  
+
+  if (wallFound == 1)
+  {
+    int Front = lookFront();
+    int Right = lookRight();
+    int Left = lookLeft();
+
+    if (Left > wall & Front < wall) // Turn left at wall
+    {
+      turnLeft();
+      delay(200);
+      moveForward();
+      delay(100);
+      moveStop();
+    }
+    else if(Right < wall & Front > wall ) //
+    {
+      float R = lookR();
+      float h = R * (1.0/0.34202);
+      float H = lookff();
+      if (H > h && H < 70)
+      {
+        while (one == 1)
+        {
+          setColor(0,0,255);
+          float H = readPing();
+          turnRight();
+          delay(25);
+          moveStop();
+          if (H < (h))
+          {
+            one = 0;
+          }
+        }
+      }
+      else if (H < h && H < 70)
+      {
+        while (one == 1)
+        {
+          setColor(255,0,0);
+          float H = readPing();
+          turnLeft();
+          delay(25);
+          moveStop();
+          if (H > (h))
+          {
+            one = 0;
+          }
+        }
+      }
+      moveForward();
+      delay(250);
+      moveStop();
+      turnRight();
+      delay(5);
+      moveStop();
+    }
+    else if (Right > wall) // Right hand corner
+    {
+      moveForward();
+      delay(350);
+      moveStop();
+      delay(300);
+      turnRight();
+      delay(255);
+      moveStop();
+      moveForward();
+      delay(500);
+      moveStop();
+      one = 1;
+    }
+    else
+    {
+      turnRight();
+      delay(550);
+      moveStop();
+    }
+  }
+}
+int lookff()     // Look Right Function for Servo Motor
+{
+  servo_motor.write(20);
+  delay(500);
+  int distance = readPing();
+  delay(250);
+  return distance;
+}
+
+int lookFront()     // Look Right Function for Servo Motor
+{
+  servo_motor.write(90);
+  delay(500);
+  int distance = readPing();
+  delay(250);
+  return distance;
+}
+
+int lookRight()     // Look Right Function for Servo Motor
+{
+  servo_motor.write(0);
+  delay(500);
+  int distance = readPing();
+  delay(100);
+  servo_motor.write(90);
+  delay(250);
+  return distance;
+}
+int lookR()     // Look Right Function for Servo Motor
+{
+  servo_motor.write(0);
+  delay(500);
+  int distance = readPing();
+  delay(250);
+  return distance;
+}
+
+int lookLeft()      // Look Left Function for Servo Motor
+{
+  servo_motor.write(180);
+  delay(500);
+  int distance = readPing();
+  delay(100);
+  servo_motor.write(90);
+  delay(250);
+  return distance;
+}
+
+int readPing()      // Read Ping Function for Ultrasonic Sensor.
+{
+  delay(100);                 // Wait 100ms between pings (about 20 pings/sec). 29ms should be the shortest delay between pings.
+  int cm = sonar.ping_cm();   //Send ping, get ping distance in centimeters (cm).
+  if (cm==0)
+  {
+    cm=250;
+  }
+  return cm;
+}
+
+void moveStop()       // Move Stop Function for Motor Driver.
+{
+  digitalWrite(RightMotorForward, LOW);
+  digitalWrite(RightMotorBackward, LOW);
+  digitalWrite(LeftMotorForward, LOW);
+  digitalWrite(LeftMotorBackward, LOW);
+}
+
+void moveForward()    // Move Forward Function for Motor Driver.
+{
+    digitalWrite(RightMotorForward, HIGH);
+    digitalWrite(RightMotorBackward, LOW);
+    digitalWrite(LeftMotorForward, HIGH);
+    digitalWrite(LeftMotorBackward, LOW);
+}
+
+void moveBackward()   // Move Backward Function for Motor Driver.
+{
+  digitalWrite(RightMotorForward, LOW);
+  digitalWrite(RightMotorBackward, HIGH);
+  digitalWrite(LeftMotorForward, LOW);
+  digitalWrite(LeftMotorBackward, HIGH);
+}
+
+void turnLeft()      // Turn Right Function for Motor Driver.
+{
+  digitalWrite(RightMotorForward, LOW);
+  digitalWrite(RightMotorBackward, HIGH);
+  digitalWrite(LeftMotorForward, HIGH);
+  digitalWrite(LeftMotorBackward, LOW);
+}
+
+void turnRight()       // Turn Left Function for Motor Driver.
+{
+  digitalWrite(RightMotorForward, HIGH);
+  digitalWrite(RightMotorBackward, LOW);
+  digitalWrite(LeftMotorForward, LOW);
+  digitalWrite(LeftMotorBackward, HIGH);
+}
